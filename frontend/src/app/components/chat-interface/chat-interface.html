@@ -1,0 +1,44 @@
+<div class="main-wrapper">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="avatar">🤖</div>
+    <div class="title">
+      <h2>Lin</h2>
+      <span>Your friendly English coach</span>
+    </div>
+  </div>
+
+  <!-- Chat messages -->
+  <div class="chat-box">
+    @for (m of messages; track m) {
+      <div [ngClass]="m.role === 'user' ? 'msg-user' : 'msg-coach'">
+        <div class="bubble">
+          <p>{{ m.content }}</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button
+      (mousedown)="startRecording()"
+      (mouseup)="stopRecording()"
+      [class.recording]="isRecording"
+      class="btn-mic"
+      title="Hold to speak"
+    >
+      {{ isRecording ? '🛑' : '🎤' }}
+    </button>
+
+    <input
+      [(ngModel)]="userInput"
+      (keyup.enter)="sendMessage()"
+      placeholder="Say something in English… I'm listening "
+    />
+
+    <button (click)="sendMessage()" class="btn-send">➤</button>
+  </div>
+
+</div>
