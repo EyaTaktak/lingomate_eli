@@ -1,7 +1,9 @@
 fastapi
 uvicorn
-requests
-gTTS
-SpeechRecognition
 python-multipart
-pydantic
+speechrecognition
+gTTS
+pydub
+python-dotenv
+requests
+# Ajoute ici la bibliothèque pour ton LLM (ex: openai ou langchain)
