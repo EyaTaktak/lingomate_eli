@@ -9,7 +9,7 @@
     </div>
   </div>
 
-  <!-- Chat messages -->
+  <!-------- Chat messages ----------------->
   <div class="chat-box">
     @for (m of messages; track m) {
       <div [ngClass]="m.role === 'user' ? 'msg-user' : 'msg-coach'">
