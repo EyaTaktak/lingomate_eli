@@ -1,0 +1,40 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ] # Se lance quand on push sur la branche main
+    paths:
+      - 'backend/**'    # Uniquement si des fichiers dans le dossier backend changent
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      # Étape optionnelle : lancer des tests si tu en as
+      # - name: Run Tests
+      #   run: |
+          # cd backend
+          # pytest
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Render
+        if: github.ref == 'refs/heads/main'
+        # On utilise un Webhook pour dire à Render de redéployer
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
