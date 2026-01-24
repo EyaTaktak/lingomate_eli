@@ -21,7 +21,8 @@ load_dotenv()
 # On autorise Angular (port 4200) à communiquer avec FastAPI
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"], 
+    allow_origins=["http://localhost:4200",
+                   "https://lingomate-eli.onrender.com"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,7 +81,7 @@ IMPORTANT RULES:
 - Focus only on the most important mistakes at the user’s level.
 - Keep explanations short, clear, and simple.
 - Always end on a positive note.
-- Use ⭐ to highlight corrections and important points.
+- Use - to highlight corrections and important points.
 - Talk like a human teacher, not a robot.
 - Keep the user motivated and engaged.
 - Avoid long monologues; keep it interactive.
