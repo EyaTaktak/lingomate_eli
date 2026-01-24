@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CoachService } from '../../services/coach.service';
@@ -10,7 +10,8 @@ import { CoachService } from '../../services/coach.service';
   templateUrl: './chat-interface.html',
   styleUrls: ['./chat-interface.css']
 })
-export class ChatInterface {
+export class ChatInterface implements AfterViewChecked {
+  @ViewChild('scrollMe') private chatContainer!: ElementRef;
   messages: any[] = [];
   userInput: string = '';
   level: string = 'A1';
@@ -20,6 +21,21 @@ export class ChatInterface {
   audioChunks: any[] = [];
 
   constructor(private coachService: CoachService) {}
+  ngAfterViewChecked(): void {
+    this.scrollToBottom();
+  }
+  private scrollToBottom(): void {
+    try {
+      // scroll instantané
+      // this.chatContainer.nativeElement.scrollTop = this.chatContainer.nativeElement.scrollHeight;
+
+      // scroll fluide
+      this.chatContainer.nativeElement.scrollTo({ 
+        top: this.chatContainer.nativeElement.scrollHeight, 
+        behavior: 'smooth' 
+      });
+    } catch (err) {}
+  }
 
   sendMessage() {
     if (!this.userInput.trim()) return;

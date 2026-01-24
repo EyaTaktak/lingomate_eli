@@ -1,7 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common'; // Import important
-import { ChatInterface } from './components/chat-interface/chat-interface'; // Ton composant
-
+import { ChatInterface } from './components/chat-interface/chat-interface';
 @Component({
   selector: 'app-root',
   standalone: true,

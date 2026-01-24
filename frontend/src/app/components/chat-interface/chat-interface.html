@@ -1,44 +1,50 @@
 <div class="main-wrapper">
-
-  <!-- Header -->
-  <div class="chat-header">
-    <div class="avatar">🤖</div>
-    <div class="title">
-      <h2>Lin</h2>
-      <span>Your friendly English coach</span>
+  <header class="chat-header">
+    <div class="header-content">
+      <div class="avatar-container">
+        <span class="avatar-emoji">🤖</span>
+        <span class="status-indicator"></span>
+      </div>
+      <div class="title">
+        <h2>Lin</h2>
+        <p>Your friendly English coach</p>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <!-------- Chat messages ----------------->
-  <div class="chat-box">
+  <div class="chat-box" #scrollMe>
     @for (m of messages; track m) {
-      <div [ngClass]="m.role === 'user' ? 'msg-user' : 'msg-coach'">
+      <div [ngClass]="m.role === 'user' ? 'msg-user' : 'msg-coach'" class="message-container">
         <div class="bubble">
-          <p>{{ m.content }}</p>
+          <div class="bubble-content">
+            {{ m.content }}
+          </div>
         </div>
       </div>
     }
   </div>
 
-  <!-- Controls -->
-  <div class="controls">
-    <button
-      (mousedown)="startRecording()"
-      (mouseup)="stopRecording()"
-      [class.recording]="isRecording"
-      class="btn-mic"
-      title="Hold to speak"
-    >
-      {{ isRecording ? '🛑' : '🎤' }}
-    </button>
+  <footer class="controls">
+    <div class="input-wrapper">
+      <button
+        (mousedown)="startRecording()"
+        (mouseup)="stopRecording()"
+        [class.recording]="isRecording"
+        class="btn-mic"
+        title="Hold to speak"
+      >
+        {{ isRecording ? '🛑' : '🎤' }}
+      </button>
 
-    <input
-      [(ngModel)]="userInput"
-      (keyup.enter)="sendMessage()"
-      placeholder="Say something in English… I'm listening "
-    />
+      <input
+        [(ngModel)]="userInput"
+        (keyup.enter)="sendMessage()"
+        placeholder="Type or speak in English..."
+      />
 
-    <button (click)="sendMessage()" class="btn-send">➤</button>
-  </div>
-
+      <button (click)="sendMessage()" class="btn-send" [disabled]="!userInput.trim()">
+        ➤
+      </button>
+    </div>
+  </footer>
 </div>
