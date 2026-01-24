@@ -17,8 +17,8 @@ export class ChatInterface implements AfterViewChecked {
   level: string = 'A1';
   score: number = 0;
   isRecording = false;
-  mediaRecorder: any;
-  audioChunks: any[] = [];
+  mediaRecorder: MediaRecorder | null = null;
+  audioChunks: Blob[] = [];
 
   constructor(private coachService: CoachService) {}
   ngAfterViewChecked(): void {
@@ -67,74 +67,88 @@ export class ChatInterface implements AfterViewChecked {
   }
 
   async startRecording() {
+    if (this.isRecording) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('getUserMedia non supporté par le navigateur');
+      this.messages.push({ role: 'assistant', content: "Votre navigateur n'autorise pas l'accès au microphone." });
+      return;
+    }
+
     try {
       this.isRecording = true;
       this.audioChunks = [];
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.mediaRecorder = new MediaRecorder(stream);
 
-      this.mediaRecorder.ondataavailable = (event: any) => {
-        this.audioChunks.push(event.data);
+      // Choisir un mimeType supporté si possible
+      let options: any = {};
+      try {
+        if ((window as any).MediaRecorder && (window as any).MediaRecorder.isTypeSupported) {
+          if ((window as any).MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            options = { mimeType: 'audio/webm;codecs=opus' };
+          } else if ((window as any).MediaRecorder.isTypeSupported('audio/webm')) {
+            options = { mimeType: 'audio/webm' };
+          } else if ((window as any).MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+            options = { mimeType: 'audio/ogg;codecs=opus' };
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur détection MIME MediaRecorder', e);
+      }
+
+      this.mediaRecorder = new MediaRecorder(stream, options);
+
+      this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) this.audioChunks.push(event.data);
       };
 
-      this.mediaRecorder.onstop = () => {
-        // On crée le blob à partir des données collectées
-        const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
-
-        // CRUCIAL : On emballe le blob dans un FormData
+      this.mediaRecorder.onstop = async () => {
+        const mime = options && options.mimeType ? options.mimeType : 'audio/webm';
+        const audioBlob = new Blob(this.audioChunks, { type: mime });
+        const filename = mime.includes('ogg') ? 'recording.ogg' : 'recording.webm';
         const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.wav');
+        formData.append('audio', audioBlob, filename);
 
-        // On envoie le formData (et non le blob seul)
-        this.coachService.sendAudio(formData).subscribe({
-          next: (res: any) => {
-            console.log('Transcription réussie :', res.text);
-            this.userInput = res.text;
-            this.sendMessage(); 
-          },
-          error: (err) => {
-            console.error('Erreur STT complète :', err);
-            this.isRecording = false;
-          }
-        });
-      };
-      this.mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
-
-      this.coachService.sendAudio(formData).subscribe({
-        next: (res: any) => {
-          // Si l'IA a compris quelque chose
-          if (res.text && res.text.trim().length > 0) {
-            console.log('Texte capté :', res.text);
-            this.userInput = res.text; // On remplit le champ
-            this.sendMessage();        // On l'envoie dans le chat
-          } else {
-            // Optionnel : afficher un petit message si le micro n'a rien capté
-            console.warn("L'audio semble vide ou incompréhensible.");
-          }
-        },
-        error: (err) => {
-          console.error('Erreur STT complète :', err);
+        try {
+          this.coachService.sendAudio(formData).subscribe({
+            next: (res: any) => {
+              if (res.text && res.text.trim().length > 0) {
+                console.log('Texte capté :', res.text);
+                this.userInput = res.text;
+                this.sendMessage();
+              } else {
+                console.warn("L'audio semble vide ou incompréhensible.");
+              }
+            },
+            error: (err) => {
+              console.error('Erreur STT complète :', err);
+              this.messages.push({ role: 'assistant', content: 'Erreur lors de la transcription audio.' });
+            }
+          });
+        } finally {
           this.isRecording = false;
         }
-      });
-    };
+      };
 
       this.mediaRecorder.start();
     } catch (err) {
       console.error('Microphone inaccessible', err);
+      this.messages.push({ role: 'assistant', content: "Impossible d'accéder au micro. Vérifiez les permissions." });
       this.isRecording = false;
     }
-  }
+}
+
 
   stopRecording() {
     if (this.mediaRecorder && this.isRecording) {
-      this.isRecording = false;
-      this.mediaRecorder.stop();
+      try {
+        this.mediaRecorder.stop();
+      } catch (e) {
+        console.warn('Erreur en stoppant MediaRecorder', e);
+      } finally {
+        this.isRecording = false;
+      }
     }
-  }
+}
 
   playResponse(text: string) {
     const audioUrl = this.coachService.getVoiceUrl(text);
