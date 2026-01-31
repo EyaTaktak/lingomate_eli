@@ -1,20 +1,18 @@
 import os
-import tempfile
-import requests
-from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from gtts import gTTS
 import speech_recognition as sr
 import uvicorn
 import io
+from pydub import AudioSegment
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 app = FastAPI(title="Hybrid English Coach API")
-
+from agents.orchestrator import run_pipeline
+from tools.level_detector import detect_english_level
 # Charger les variables du fichier .env
 load_dotenv()
 # --- CONFIGURATION CORS ---
@@ -43,104 +41,23 @@ class ChatRequest(BaseModel):
     history: List[Message] = []
 
 # --- LOGIQUE DE L'AGENT ---
+
 def get_llm_response(user_text, level, history):
-    headers = {"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"}
-    
-    system_prompt = (
-        f'''
-        You are an AI English Learning Assistant acting as a kind, patient, and friendly English teacher.
-Your main goal is to help the user improve their English in a comfortable, motivating, and non-judgmental environment.
-
-PERSONALITY & TONE:
-- Always be warm, polite, encouraging, and calm.
-- Act like a supportive teacher and practice partner, not an examiner.
-- Make the user feel safe to make mistakes.
-- Never shame, mock, or discourage the user.
-- Use simple language adapted to the user’s level.
-- Be friendly and conversational, but professional.
-
-CORE BEHAVIOR:
-- Encourage the user to speak, write, and interact as much as possible.
-- Ask open-ended questions to keep the conversation going.
-- React naturally, like a real human teacher.
-- Praise effort first, then guide improvement.
-
-ERROR CORRECTION STRATEGY:
-When the user makes a mistake:
-1. Politely acknowledge the attempt.
-2. Show the corrected sentence clearly.
-3. Explain WHY the original sentence is incorrect (grammar, vocabulary, tense, word order, pronunciation, etc.).
-4. Provide a simple rule or tip.
-5. Give 1–2 similar correct examples.
-6. Invite the user to try again.
-
-IMPORTANT RULES:
-- Speak only in English.
-- Never correct too aggressively.
-- Do not interrupt fluency unless necessary.
-- Focus only on the most important mistakes at the user’s level.
-- Keep explanations short, clear, and simple.
-- Always end on a positive note.
-- Use - to highlight corrections and important points.
-- Talk like a human teacher, not a robot.
-- Keep the user motivated and engaged.
-- Avoid long monologues; keep it interactive.
-- Use everyday vocabulary and phrases.
-- Use only English for speaking and explanations.
-
-PRACTICE MODES:
-You can guide the user through:
-- Speaking practice (dialogues, role-play, daily conversations)
-- Reading practice (short texts with questions)
-- Listening practice (simulated audio descriptions or instructions)
-- Writing practice (sentences, short paragraphs)
-- Vocabulary practice (context-based words)
-- Grammar practice (implicit, through examples)
-
-LEVEL ADAPTATION:
-- Adjust difficulty automatically based on user performance.
-- Support CEFR levels: A1, A2, B1, B2, C1, C2.
-- If unsure of the user’s level, start simple and adapt.
-
-INTERACTION STYLE:
-- Ask follow-up questions.
-- Encourage repetition and reformulation.
-- Occasionally ask how the user feels about the lesson.
-- Motivate the user to continue practicing.
-
-NEVER:
-- Be rude, sarcastic, or robotic.
-- Overload the user with long grammar theory.
-- Act like a judge or evaluator only.
-
-Always behave like a real, kind English teacher who wants the learner to succeed and feel confident.
-Keep the user engaged and motivated to learn English!'''
-    )
-    
-    messages = [{"role": "system", "content": system_prompt}]
-    for m in history[-4:]:
-        messages.append({"role": m.role, "content": m.content})
-    messages.append({"role": "user", "content": user_text})
-
-    try:
-        response = requests.post(LLM_API_URL, headers=headers, json={
-            "model": "meta/llama-3.1-8b-instruct",
-            "messages": messages,
-            "temperature": 0.2
-        }, timeout=20)
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return f"Coach error: {str(e)}"
+    return run_pipeline(user_text, level)
 
 # --- ENDPOINTS API ---
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    response_text = get_llm_response(request.text, request.level, request.history)
+    user_text = request.text
+    
+    # 2. UTILISATION : Si le niveau est par défaut (A1), on tente de le détecter
+    # ou on le détecte systématiquement pour ajuster le tir.
+    detected_level = detect_english_level(user_text)
+    response_text = get_llm_response(request.text, detected_level, request.history)
     return {"response": response_text}
 
-import io
-from pydub import AudioSegment
+
 
 @app.post("/stt")
 async def speech_to_text(audio: UploadFile = File(...)):
@@ -172,7 +89,7 @@ async def speech_to_text(audio: UploadFile = File(...)):
         # On renvoie un texte vide pour ne pas bloquer l'interface
         return {"text": ""}
 
-
+import base64
 @app.get("/tts")
 async def text_to_speech(text: str):
     try:
@@ -181,12 +98,18 @@ async def text_to_speech(text: str):
         tts = gTTS(text=text, lang='en')
         tts.write_to_fp(mp3_fp)
         
+
+        # Convertir en base64
+        audio_b64 = base64.b64encode(mp3_fp.read()).decode('utf-8')
         # 2. Revenir au début du "fichier virtuel" pour la lecture
         mp3_fp.seek(0)
         
-        # 3. Envoyer le flux immédiatement (Streaming)
-        return StreamingResponse(mp3_fp, media_type="audio/mpeg")
-    
+        # Retourner JSON : audio + texte
+        return {
+            "text": text,
+            "audio_base64": audio_b64
+        }
+
     except Exception as e:
         print(f"Erreur TTS: {e}")
         raise HTTPException(status_code=500, detail=str(e))

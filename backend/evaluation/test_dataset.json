@@ -1,0 +1,14 @@
+[
+    {
+        "question": "How do you say 'Bonjour' in English?",
+        "expected_answer": "Hello"
+    },
+    {
+        "question": "What is the past tense of 'go'?",
+        "expected_answer": "went"
+    },
+    {
+        "question": "Translate 'Je suis fatigué' into English.",
+        "expected_answer": "I am tired"
+    }
+]

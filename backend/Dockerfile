@@ -1,28 +1,32 @@
-# 1. Utiliser une image Python légère
-FROM python:3.10-slim
+# 1️ Base image
+FROM python:3.11-slim
 
-# 2. Installer FFmpeg et les dépendances système
-# Ces outils sont nécessaires pour que pydub puisse traiter le WebM/WAV
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# 2️ Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-# 3. Définir le dossier de travail dans le conteneur
+# 3️ Set working directory
 WORKDIR /app
 
-# 4. Copier le fichier des dépendances
+# 4️ Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 5️ Copy requirements
 COPY requirements.txt .
 
-# 5. Installer les bibliothèques Python
+# 6️ Install Python dependencies
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copier tout le reste du code backend
+# 7️ Copy the app code
 COPY . .
 
-# 7. Exposer le port que FastAPI utilise (par défaut 8000)
+# 8️ Expose port for FastAPI
 EXPOSE 8000
 
-# 8. Commande de lancement (Uvicorn)
-# On écoute sur 0.0.0.0 pour que le serveur soit accessible de l'extérieur
+# 9️ Run the FastAPI app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

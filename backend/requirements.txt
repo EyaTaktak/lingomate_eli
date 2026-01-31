@@ -6,4 +6,8 @@ gTTS
 pydub
 python-dotenv
 requests
-# Ajoute ici la bibliothèque pour ton LLM (ex: openai ou langchain)
+pydantic
+langchain
+faiss-cpu
+transformers
+sentence-transformers
