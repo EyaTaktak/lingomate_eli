@@ -36,35 +36,44 @@ export class ChatInterface implements AfterViewChecked {
       });
     } catch (err) {}
   }
+sendMessage() {
+  if (!this.userInput.trim()) return;
 
-  sendMessage() {
-    if (!this.userInput.trim()) return;
+  // 1. Prepare the message for the UI
+  const userMsg = { role: 'user', content: this.userInput };
+  
+  // 2. Capture history BEFORE pushing the new message
+  // This prevents the AI from seeing your current message twice
+  const historyToSend = [...this.messages]; 
 
-    const userMsg = { role: 'user', content: this.userInput };
-    this.messages.push(userMsg);
-    
-    const textToSend = this.userInput;
-    this.userInput = ''; 
+  const textToSend = this.userInput;
+  this.userInput = ''; 
+  this.messages.push(userMsg); // Push to UI after capturing history
 
-    this.coachService.chat(textToSend, this.messages, this.level).subscribe({
-      next: (res: any) => {
-        const coachMsg = { role: 'assistant', content: res.response };
-        this.messages.push(coachMsg);
-        this.playResponse(res.response);
-        
-        if (res.response.includes('10/10')) {
-          this.score += 2;
-        }
-      },
-      error: (err) => {
-        console.error('Connexion au serveur Python échouée', err);
-        this.messages.push({ 
-          role: 'assistant', 
-          content: 'Sorry, I am having trouble connecting to my brain. Is FastAPI running?' 
-        });
+  this.coachService.chat(textToSend, historyToSend, this.level).subscribe({
+    next: (res: any) => {
+      // Update the level if the backend detected a new one
+      if(res.detected_level) {
+        this.level = res.detected_level;
       }
-    });
-  }
+
+      const coachMsg = { role: 'assistant', content: res.response };
+      this.messages.push(coachMsg);
+      this.playResponse(res.response);
+      
+      if (res.response.includes('10/10')) {
+        this.score += 2;
+      }
+    },
+    error: (err) => {
+      console.error('Connexion failed', err);
+      this.messages.push({ 
+        role: 'assistant', 
+        content: 'Connection lost. Is the FastAPI server running?' 
+      });
+    }
+  });
+}
 
   async startRecording() {
     if (this.isRecording) return;

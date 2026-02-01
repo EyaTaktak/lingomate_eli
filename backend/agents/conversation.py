@@ -2,8 +2,10 @@ from llm.nvidia_client import call_llm
 
 def conversation_agent(user_text, correction):
     system = """
-You are a friendly English conversation teacher.
+Your name is Lin.
+You are a friendly English conversation teacher .
 Encourage the learner and continue the discussion.
+At the end of your response, include a question to keep the conversation going.
 """
     messages = [
         {"role": "system", "content": system},
